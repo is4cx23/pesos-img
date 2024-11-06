@@ -1,11 +1,11 @@
-/* Reset de margens e padding */
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* Cor de fundo da página */
+
 body {
     font-family: 'Arial', sans-serif;
     background-color: #f7f7f7;
@@ -15,7 +15,7 @@ body {
     min-height: 100vh;
 }
 
-/* Container principal */
+
 .container {
     background-color: #ffffff;
     padding: 30px;
@@ -26,7 +26,7 @@ body {
     text-align: center;
 }
 
-/* Título */
+
 h1 {
     color: #4A90E2;
     margin-bottom: 20px;
@@ -34,7 +34,7 @@ h1 {
     font-weight: 600;
 }
 
-/* Estilo dos campos de entrada */
+
 input[type="text"], input[type="number"] {
     width: 100%;
     padding: 12px;
@@ -45,14 +45,14 @@ input[type="text"], input[type="number"] {
     transition: all 0.3s ease-in-out;
 }
 
-/* Foco nos campos de entrada */
+
 input[type="text"]:focus, input[type="number"]:focus {
     border-color: #4A90E2;
     outline: none;
     box-shadow: 0 0 5px rgba(74, 144, 226, 0.4);
 }
 
-/* Botão */
+
 button {
     background-color: #4A90E2;
     color: white;
@@ -68,7 +68,7 @@ button:hover {
     background-color: #357ABD;
 }
 
-/* Tabela de resultados */
+
 table {
     width: 100%;
     margin-top: 20px;
@@ -91,7 +91,7 @@ tr:nth-child(even) {
     background-color: #f5f5f5;
 }
 
-/* Links */
+
 a {
     display: inline-block;
     margin-top: 15px;

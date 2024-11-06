@@ -1,110 +1,77 @@
-from flask import Flask, render_template, request
-from PIL import Image
-import time
-import io
-import base64
+from flask import Flask, render_template, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
-def hide_message(message, image):
-    encoded = image.copy()
-    width, height = image.size
-    pixels = encoded.load()
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///imc.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-    # Converter a mensagem para binário
-    binary_message = ''.join(format(ord(i), '08b') for i in message) + '1111111111111110'
+class Usuario(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)
+    peso = db.Column(db.Float, nullable=False)
+    altura = db.Column(db.Float, nullable=False)
 
-    data_index = 0
-    for y in range(height):
-        for x in range(width):
-            pixel = list(pixels[x, y])
-            for i in range(3): #Alterar os 3 primeiros valores RGB do pixel
-                if data_index < len(binary_message):
-                    pixel[i] = pixel[i] & ~1 | int(binary_message[data_index])
-                    data_index += 1
-                
-            pixels[x, y] = tuple(pixel)
-            if data_index >= len(binary_message):
-                break
-        if data_index >=len(binary_message):
-            break
-    return encoded
+    def __init__(self, nome, peso, altura):
+        self.nome = nome
+        self.peso = peso
+        self.altura = altura
 
-def reveal_message(image):
-    binary_message = ''
-    pixels = image.load()
-    width, height = image.size
+with app.app_context():
+    db.create_all()
 
-    for y in range(height):
-        for x in range(width):
-            pixel = list(pixels[x, y])
-            for i in range(3): # Extrair os 3 primeiros valores RGB do pixel
-                binary_message += str(pixel[i] & 1)
+def calculate_imc(peso, altura):
+    altura_metros = altura / 100   
+    imc = peso / (altura_metros ** 2)
+    return imc
 
-    # Verificar o fim da mensagem com o terminador (1111111111111110)
-    terminator = '1111111111111110'
-    index_of_terminator = binary_message.find(terminator)
-
-    # Se o terminador for encontrado, cortar a mensagem
-    if index_of_terminator != -1:
-        binary_message = binary_message[:index_of_terminator]
-
-    # Converter de binário para texto
-    decoded_message = ''
-    for i in range(0, len(binary_message), 8):
-        byte = binary_message[i:i + 8]
-        decoded_message += chr(int(byte, 2))
-
-    return decoded_message
-
-@app.template_filter('b64encode')
-def b64encode_filter(data):
-    return base64.b64encode(data).decode('utf-8')
-
-# Rota principal
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
+    if request.method == 'POST':
+        nome = request.form['nome']
+        peso = float(request.form['peso'])
+        altura = float(request.form['altura'])
+
+        imc = calculate_imc(peso, altura)
+
+        if imc < 18.5:
+            imc_message = "Você está abaixo do peso."
+        elif 18.5 <= imc < 24.9:
+            imc_message = "Você está com peso normal."
+        elif 25 <= imc < 29.9:
+            imc_message = "Você está com sobrepeso."
+        else:
+            imc_message = "Você está com obesidade."
+
+        novo_usuario = Usuario(nome=nome, peso=peso, altura=altura)
+        db.session.add(novo_usuario)
+        db.session.commit()
+
+        return render_template('index.html', nome=nome, peso=peso, altura=altura, imc=imc, imc_message=imc_message)
     return render_template('index.html')
 
-# Rota codificar
-@app.route('/encode', methods=['GET', 'POST'])
-def encode():
-    if request.method == 'POST':
-        file = request.files['image']
-        message = request.form['message']
+@app.route('/api/usuarios', methods=['GET'])
+def get_usuarios():
+    usuarios = Usuario.query.all()
+    return jsonify([{
+        "id": usuario.id,
+        "nome": usuario.nome,
+        "peso": usuario.peso,
+        "altura": usuario.altura
+    } for usuario in usuarios])
 
-        #Abrir a imagem e ocultar a mensagem
-        img = Image.open(file)
-        encoded_img = hide_message(message, img)
+@app.route('/api/usuarios/<int:id>', methods=['GET'])
+def get_usuario(id):
+    usuario = Usuario.query.get(id)
+    if usuario:
+        return jsonify({
+            "id": usuario.id,
+            "nome": usuario.nome,
+            "peso": usuario.peso,
+            "altura": usuario.altura
+        })
+    return jsonify({"error": "Usuário não encontrado"}), 404
 
-        # Nome da imagem com timestamp
-        timestamp = str(int(time.time()))
-        img_filename = f'encoded_{timestamp}.png'
-
-        # Salvar a imagem codificada em um objeto de bytes
-        img_io = io.BytesIO()
-        encoded_img.save(img_io, 'PNG')
-        img_io.seek(0)
-
-        return render_template(
-            'encode.html',
-            image_data=img_io.getvalue(),
-            img_filename=img_filename
-        )
-
-    return render_template('encode.html')
-
-@app.route('/decode', methods=['GET', 'POST'])
-def decode():
-    if request.method == 'POST':
-        file = request.files['image']
-
-        # Abrir a imagem e revelar a mensagem
-        image = Image.open(file)
-        hidden_message = reveal_message(image)
-
-        return render_template(
-            'decode.html',
-            message=hidden_message
-        )
-    return render_template('decode.html')
+if __name__ == '__main__':
+    app.run(port=5000, debug=True)
