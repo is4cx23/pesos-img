@@ -1,2 +1,3 @@
-# esteg_flask
-Um simples aplicativo em Flask para codificar e decodificar mensagens em imagens
+Pesos-img
+modo de executar no terminal "python app.py"
+
